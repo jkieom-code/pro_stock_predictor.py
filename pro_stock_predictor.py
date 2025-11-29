@@ -21,37 +21,52 @@ def load_stock(ticker, years=10):
 # ------------------------------------------------------------
 # Helper: Add technical indicators
 # ------------------------------------------------------------
-def add_indicators(df):
-    df = df.copy()
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import ta
+
+def load_stock(ticker, years=10):
+    # Download historical data
+    df = yf.download(ticker, period=f"{years}y")
     
-    # Step 1: Handle multi-level columns
+    # Ensure 'Close' is 1D float array
     if isinstance(df.columns, pd.MultiIndex):
+        # yfinance sometimes returns multi-indexed columns
         if 'Close' in df.columns.get_level_values(0):
             df['Close'] = df['Close'].iloc[:, 0]
         else:
-            df['Close'] = df.iloc[:, 3]  # fallback: usually Close is 4th column
+            # fallback: usually Close is 4th column
+            df['Close'] = df.iloc[:, 3]
     
-    # Step 2: Ensure 1D Series
     if isinstance(df['Close'], pd.DataFrame):
         df['Close'] = df['Close'].iloc[:, 0]
+
+    # Convert to numeric
+    df['Close'] = pd.to_numeric(np.array(df['Close']), errors='coerce')
     
-    # Step 3: Convert to float
-    df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
-    
-    # Step 4: Fill missing values
+    # Fill missing values
     df['Close'] = df['Close'].fillna(method='ffill')
     
-    # Step 5: Add technical indicators
-    rsi_indicator = ta.momentum.RSIIndicator(close=df['Close'], window=14)
+    df = df.dropna()
+    return df
+
+def add_indicators(df):
+    df = df.copy()
+    close_prices = df['Close']
+    
+    # RSI
+    rsi_indicator = ta.momentum.RSIIndicator(close=close_prices, window=14)
     df['rsi'] = rsi_indicator.rsi()
     
-    macd_indicator = ta.trend.MACD(close=df['Close'])
+    # MACD
+    macd_indicator = ta.trend.MACD(close=close_prices)
     df['macd'] = macd_indicator.macd_diff()
     
-    df['volatility'] = df['Close'].pct_change().rolling(20).std()
-    df['return'] = df['Close'].pct_change()
+    # Volatility & returns
+    df['volatility'] = close_prices.pct_change().rolling(20).std()
+    df['return'] = close_prices.pct_change()
     
-    # Step 6: Drop remaining NaNs
     df = df.dropna()
     return df
 
