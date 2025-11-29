@@ -24,27 +24,34 @@ def load_stock(ticker, years=10):
 def add_indicators(df):
     df = df.copy()
     
-    # Step 1: Ensure 'Close' is a Series, not a DataFrame
-    if isinstance(df["Close"], pd.DataFrame):
-        df["Close"] = df["Close"].iloc[:, 0]  # take the first column
+    # Step 1: Handle multi-level columns
+    if isinstance(df.columns, pd.MultiIndex):
+        if 'Close' in df.columns.get_level_values(0):
+            df['Close'] = df['Close'].iloc[:, 0]
+        else:
+            df['Close'] = df.iloc[:, 3]  # fallback: usually Close is 4th column
     
-    # Step 2: Convert to float
-    df["Close"] = pd.to_numeric(df["Close"].astype(float), errors="coerce")
+    # Step 2: Ensure 1D Series
+    if isinstance(df['Close'], pd.DataFrame):
+        df['Close'] = df['Close'].iloc[:, 0]
     
-    # Step 3: Fill missing values
-    df["Close"] = df["Close"].fillna(method="ffill")
+    # Step 3: Convert to float
+    df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
     
-    # Step 4: Add technical indicators
-    rsi_indicator = ta.momentum.RSIIndicator(close=df["Close"], window=14)
-    df["rsi"] = rsi_indicator.rsi()
+    # Step 4: Fill missing values
+    df['Close'] = df['Close'].fillna(method='ffill')
     
-    macd_indicator = ta.trend.MACD(close=df["Close"])
-    df["macd"] = macd_indicator.macd_diff()
+    # Step 5: Add technical indicators
+    rsi_indicator = ta.momentum.RSIIndicator(close=df['Close'], window=14)
+    df['rsi'] = rsi_indicator.rsi()
     
-    df["volatility"] = df["Close"].pct_change().rolling(20).std()
-    df["return"] = df["Close"].pct_change()
+    macd_indicator = ta.trend.MACD(close=df['Close'])
+    df['macd'] = macd_indicator.macd_diff()
     
-    # Step 5: Drop any remaining NaNs
+    df['volatility'] = df['Close'].pct_change().rolling(20).std()
+    df['return'] = df['Close'].pct_change()
+    
+    # Step 6: Drop remaining NaNs
     df = df.dropna()
     return df
 
