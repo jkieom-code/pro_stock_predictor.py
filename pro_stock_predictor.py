@@ -24,13 +24,17 @@ def load_stock(ticker, years=10):
 def add_indicators(df):
     df = df.copy()
     
-    # Ensure 'Close' is a 1D float Series
+    # Step 1: Ensure 'Close' is a Series, not a DataFrame
     if isinstance(df["Close"], pd.DataFrame):
-        df["Close"] = df["Close"].iloc[:, 0]
-    df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
+        df["Close"] = df["Close"].iloc[:, 0]  # take the first column
+    
+    # Step 2: Convert to float
+    df["Close"] = pd.to_numeric(df["Close"].astype(float), errors="coerce")
+    
+    # Step 3: Fill missing values
     df["Close"] = df["Close"].fillna(method="ffill")
     
-    # Technical indicators
+    # Step 4: Add technical indicators
     rsi_indicator = ta.momentum.RSIIndicator(close=df["Close"], window=14)
     df["rsi"] = rsi_indicator.rsi()
     
@@ -40,9 +44,10 @@ def add_indicators(df):
     df["volatility"] = df["Close"].pct_change().rolling(20).std()
     df["return"] = df["Close"].pct_change()
     
-    # Drop any remaining NaNs
+    # Step 5: Drop any remaining NaNs
     df = df.dropna()
     return df
+
 
 
 
