@@ -23,12 +23,23 @@ def load_stock(ticker, years=10):
 # ------------------------------------------------------------
 def add_indicators(df):
     df = df.copy()
-    df["rsi"] = ta.momentum.rsi(df["Close"], window=14)
-    df["macd"] = ta.trend.macd_diff(df["Close"])
+    
+    # Ensure 'Close' is 1D
+    if isinstance(df["Close"], pd.DataFrame):
+        df["Close"] = df["Close"].iloc[:, 0]
+    
+    # Fill missing values if any
+    df["Close"] = df["Close"].fillna(method='ffill')
+    
+    # Technical indicators
+    df["rsi"] = ta.momentum.RSIIndicator(close=df["Close"], window=14).rsi()
+    df["macd"] = ta.trend.MACD(close=df["Close"]).macd_diff()
     df["volatility"] = df["Close"].pct_change().rolling(20).std()
     df["return"] = df["Close"].pct_change()
+    
     df = df.dropna()
     return df
+
 
 
 # ------------------------------------------------------------
